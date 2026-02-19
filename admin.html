@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>PhoneShop Admin — Manage Products & Services</title>
+  <style>
+    :root{
+      --bg:#071329;
+      --panel:#081427;
+      --muted:#9fb1c6;
+      --accent:#6b8cff;
+      --accent-2:#40d3ff;
+      --success:#24d38a;
+      --danger:#ff6b6b;
+      --radius:12px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      font-size:15px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#041026,#071329);color:#eaf6ff;padding:18px;}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{margin:0;font-size:20px}
+    main{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;align-items:start}
+    @media (max-width:980px){ main{grid-template-columns:1fr; } }
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+    .controls-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    input, textarea, select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:inherit}
+    .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#041225;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .danger{background:linear-gradient(90deg,#ff6b6b,#ff4b4b);color:white;border:none}
+    .list{max-height:70vh;overflow:auto;border-radius:10px;padding:8px}
+    .row{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);margin-bottom:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent)}
+    .row img{width:84px;height:64px;object-fit:cover;border-radius:8px}
+    .meta{flex:1}
+    .meta strong{display:block}
+    .controls{display:flex;gap:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .grid-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+    .preview-card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:10px;border-radius:10px}
+    .preview-card img{width:100%;height:90px;object-fit:cover;border-radius:8px}
+    .kvs{font-size:13px;color:var(--muted);white-space:pre-wrap;background:rgba(255,255,255,0.02);padding:10px;border-radius:10px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    .images-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .img-thumb{position:relative;width:84px;height:64px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.03);background:#061327}
+    .img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .img-thumb button{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:white;padding:4px 6px;border-radius:6px;cursor:pointer}
+    .dropzone{border:2px dashed rgba(255,255,255,0.04);padding:12px;border-radius:10px;text-align:center;color:var(--muted);background:rgba(255,255,255,0.01)}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .field-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .price-row{display:flex;align-items:center;gap:8px}
+    .nbtn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:6px 10px;border-radius:8px;cursor:pointer}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .chip{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:8px;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+    .chip button{background:transparent;border:none;color:var(--muted);cursor:pointer}
+    .toggle{display:inline-flex;align-items:center;gap:8px}
+    .faint{color:var(--muted)}
+    button:focus, input:focus, textarea:focus, select:focus { outline: 3px solid rgba(64,211,255,0.10); outline-offset:2px; }
+    .split-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>PhoneShop Admin</h1>
+      <div class="small">Manage products & services — CRUD. Data stored on the server (API) with local fallback.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="exportBtn" class="ghost">Export JSON</button>
+      <button id="importBtn" class="ghost">Import JSON</button>
+      <button id="resetBtn" class="ghost">Reset Sample</button>
+      <button id="openStore" class="btn">Open Store</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: product list (50%) -->
+    <section class="panel" aria-labelledby="product-list-heading">
+      <div class="split-title">
+        <strong id="product-list-heading">Products</strong>
+        <div class="small" id="countBadge"></div>
+      </div>
+
+      <div class="controls-row">
+        <input id="search" class="search" placeholder="Search name, brand, category..." />
+        <select id="categoryFilter" style="min-width:140px">
+          <option value="">All categories</option>
+        </select>
+        <button id="newBtn" class="btn">+ New</button>
+      </div>
+
+      <div class="list" id="productList" role="list" aria-live="polite"></div>
+    </section>
+
+    <!-- RIGHT: form (50%) -->
+    <section class="panel" aria-labelledby="editor-heading">
+      <form id="productForm" aria-labelledby="editor-heading">
+        <div class="split-title">
+          <strong id="editor-heading">Edit / Create product</strong>
+          <div class="small faint">Half width form — many controls included</div>
+        </div>
+
+        <!-- ID / auto gen -->
+        <label for="id">ID</label>
+        <div style="display:flex;gap:8px">
+          <input id="id" placeholder="id (auto-gen if empty)" />
+          <button id="genId" type="button" class="ghost">Auto ID</button>
+        </div>
+
+        <!-- name / brand / category -->
+        <div class="field-grid">
+          <div>
+            <label for="name">Name</label>
+            <input id="name" placeholder="Product / Service name" required/>
+          </div>
+          <div>
+            <label for="brandSelect">Brand</label>
+            <div style="display:flex;gap:8px">
+              <select id="brandSelect"></select>
+              <input id="brandFree" placeholder="or type brand"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <div>
+            <label for="categorySelect">Category</label>
+            <div style="display:flex;gap:8px">
+              <select id="categorySelect"></select>
+              <input id="categoryFree" placeholder="or type category"/>
+            </div>
+          </div>
+
+          <div>
+            <label for="releaseDate">Release date</label>
+            <input id="releaseDate" type="date"/>
+          </div>
+        </div>
+
+        <!-- price / stock / active -->
+        <div class="field-grid">
+          <div>
+            <label for="price">Price (USD)</label>
+            <div class="price-row">
+              <button id="decPrice" type="button" class="nbtn">−</button>
+              <input id="price" placeholder="0" type="number" min="0" step="1" />
+              <button id="incPrice" type="button" class="nbtn">+</button>
+              <div class="small faint" id="pricePreview" style="margin-left:8px"></div>
+            </div>
+          </div>
+          <div>
+            <label for="stock">Stock</label>
+            <input id="stock" type="number" min="0" step="1" placeholder="units in stock"/>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+          <label class="toggle"><input id="active" type="checkbox" /> Active</label>
+          <label class="toggle"><input id="featured" type="checkbox" /> Featured</label>
+        </div>
+
+        <!-- warranty radio -->
+        <div>
+          <label>Warranty</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <label class="small"><input name="warranty" type="radio" value="6"> 6 mo</label>
+            <label class="small"><input name="warranty" type="radio" value="12" checked> 12 mo</label>
+            <label class="small"><input name="warranty" type="radio" value="24"> 24 mo</label>
+            <label class="small"><input name="warranty" type="radio" value="none"> None</label>
+          </div>
+        </div>
+
+        <!-- features checkboxes -->
+        <div>
+          <label>Features</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <label class="small"><input type="checkbox" value="5G" class="feature"> 5G</label>
+            <label class="small"><input type="checkbox" value="NFC" class="feature"> NFC</label>
+            <label class="small"><input type="checkbox" value="Water Resistant" class="feature"> Water Resistant</label>
+            <label class="small"><input type="checkbox" value="Wireless Charging" class="feature"> Wireless Charging</label>
+            <label class="small"><input type="checkbox" value="Dual SIM" class="feature"> Dual SIM</label>
+          </div>
+        </div>
+
+        <!-- colors / tags as chips -->
+        <div class="field-grid">
+          <div>
+            <label>Colors</label>
+            <div style="display:flex;gap:8px">
+              <input id="colorInput" placeholder="Add color (e.g. Black)"/>
+              <button id="addColor" type="button" class="ghost">Add</button>
+            </div>
+            <div class="chips" id="colorsChips"></div>
+          </div>
+          <div>
+            <label>Tags</label>
+            <div style="display:flex;gap:8px">
+              <input id="tagInput" placeholder="Add tag (e.g. flagship)"/>
+              <button id="addTag" type="button" class="ghost">Add</button>
+            </div>
+            <div class="chips" id="tagsChips"></div>
+          </div>
+        </div>
+
+        <!-- image upload: dropzone + file input + url add -->
+        <div style="margin-top:8px">
+          <label>Images</label>
+          <div class="dropzone" id="dropzone">Drag & drop images here, or use "Upload" / "Add URL"</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="uploadBtn" type="button" class="ghost">Upload images</button>
+            <input id="imgUrl" placeholder="Image URL" />
+            <button id="addUrl" type="button" class="ghost">Add URL</button>
+          </div>
+          <div class="images-row" id="imagesPreview" aria-live="polite"></div>
+        </div>
+
+        <!-- specs & services editors -->
+        <label for="specs">Specs - key:value per line</label>
+        <textarea id="specs" rows="4" placeholder="Display: 6.5&quot; OLED\nCPU: Snapdragon 888\nRAM: 8GB"></textarea>
+
+        <label for="services">Services (key:value per line; price as number or with $)</label>
+        <textarea id="services" rows="3" placeholder="Screen replacement:199\nBattery replacement:89"></textarea>
+
+        <label for="notes">Notes / description</label>
+        <textarea id="notes" rows="3" placeholder="Short product description"></textarea>
+
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="submit" class="btn">Save</button>
+          <button type="button" id="deleteBtn" class="danger">Delete</button>
+          <button type="button" id="previewBtn" class="ghost">Preview Grid</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <strong>Reviews (read-only)</strong>
+          <div id="revBox" class="kvs">Reviews appear when users add them in store.</div>
+        </div>
+      </form>
+
+      <div id="previewArea" class="grid-preview" style="display:none"></div>
+    </section>
+  </main>
+
+  <!-- hidden file input for upload -->
+  <input type="file" id="fileInput" accept="image/*" style="display:none" multiple />
+
+  <script>
+    /* STORAGE + SAMPLE FALLBACK */
+    const STORAGE_KEY = 'phoneShopProducts_v1';
+    const sampleSeed = [
+      {
+        id: 's21-ultra',
+        name: 'Samsung Galaxy S21 Ultra',
+        brand: 'Samsung',
+        category: 'Phone',
+        price: 1199,
+        stock: 10,
+        active: true,
+        featured: true,
+        release: '2021-01-29',
+        warranty: '12',
+        features: ['5G','NFC'],
+        colors: ['Phantom Black','Phantom Silver'],
+        tags: ['flagship','camera'],
+        images: ['https://fdn2.gsmarena.com/vv/pics/samsung/samsung-galaxy-s21-ultra-5g-1.jpg'],
+        specs: { Display: '6.8\" Dynamic AMOLED 2X, 120Hz', CPU: 'Exynos/Snapdragon', RAM: '12GB', Storage: '128/256/512GB' },
+        services: { "Screen replacement": 299, "Battery replacement": 99 },
+        reviews: [{name:'Alice',rating:5,comment:'Incredible screen',date: Date.now()}]
+      }
+    ];
+
+    function safeClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+    /* ELEMENTS */
+    const productList = document.getElementById('productList');
+    const searchInput = document.getElementById('search');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const newBtn = document.getElementById('newBtn');
+    const productForm = document.getElementById('productForm');
+    const idInput = document.getElementById('id');
+    const nameInput = document.getElementById('name');
+    const brandSelect = document.getElementById('brandSelect');
+    const brandFree = document.getElementById('brandFree');
+    const categorySelect = document.getElementById('categorySelect');
+    const categoryFree = document.getElementById('categoryFree');
+    const releaseDate = document.getElementById('releaseDate');
+    const priceInput = document.getElementById('price');
+    const pricePreview = document.getElementById('pricePreview');
+    const incPrice = document.getElementById('incPrice');
+    const decPrice = document.getElementById('decPrice');
+    const stockInput = document.getElementById('stock');
+    const activeChk = document.getElementById('active');
+    const featuredChk = document.getElementById('featured');
+    const featureChecks = document.getElementsByClassName('feature');
+    const specInput = document.getElementById('specs');
+    const servicesInput = document.getElementById('services');
+    const notesInput = document.getElementById('notes');
+    const imagesInput = document.getElementById('imgUrl');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const addUrlBtn = document.getElementById('addUrl');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const imagesPreview = document.getElementById('imagesPreview');
+    const colorsChips = document.getElementById('colorsChips');
+    const tagsChips = document.getElementById('tagsChips');
+    const colorInput = document.getElementById('colorInput');
+    const addColorBtn = document.getElementById('addColor');
+    const tagInput = document.getElementById('tagInput');
+    const addTagBtn = document.getElementById('addTag');
+    const previewBtn = document.getElementById('previewBtn');
+    const previewArea = document.getElementById('previewArea');
+    const revBox = document.getElementById('revBox');
+    const genIdBtn = document.getElementById('genId');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const openStore = document.getElementById('openStore');
+    const countBadge = document.getElementById('countBadge');
+
+    /* STATE */
+    let products = [];
+    let currentImages = [];
+
+    /* UTILITIES */
+    function generateId(name){
+      const base = (name||'item').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').slice(0,40) || 'item';
+      let id = base;
+      let suffix=1;
+      while(products.find(p=>p.id===id)){
+        id = `${base}-${++suffix}`;
+      }
+      return id;
+    }
+
+    function parseSpecs(text){
+      const obj = {};
+      text.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+        const [k, ...rest] = line.split(':');
+        if (!k) return;
+        obj[k.trim()] = rest.join(':').trim();
+      });
+      return obj;
+    }
+
+    function parseServices(text){
+      const obj = {};
+      text.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+        const [k, ...rest] = line.split(':');
+        if (!k) return;
+        const raw = rest.join(':').trim();
+        const cleaned = raw.replace(/[^\d.-]+/g, '');
+        obj[k.trim()] = cleaned && !isNaN(cleaned) ? Number(cleaned) : raw;
+      });
+      return obj;
+    }
+
+    function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function toast(msg, t=1600){ const d = document.createElement('div'); d.textContent=msg; d.style.position='fixed'; d.style.left='50%'; d.style.transform='translateX(-50%)'; d.style.bottom='22px'; d.style.background='#041225'; d.style.color='var(--accent)'; d.style.padding='10px 14px'; d.style.borderRadius='8px'; d.style.zIndex=9999; d.style.boxShadow='0 8px 30px rgba(0,0,0,0.6)'; document.body.appendChild(d); setTimeout(()=>d.style.opacity='0', t-300); setTimeout(()=>d.remove(), t); }
+
+    /* API helpers with fallback to localStorage */
+    async function apiGetProducts(){
+      const res = await fetch('/api/products');
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+    async function apiGetProduct(id){
+      const res = await fetch('/api/products/' + encodeURIComponent(id));
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+    async function apiCreateProduct(obj){
+      const res = await fetch('/api/products', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(obj) });
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+    async function apiUpdateProduct(id, obj){
+      const res = await fetch('/api/products/' + encodeURIComponent(id), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(obj) });
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+    async function apiDeleteProduct(id){
+      const res = await fetch('/api/products/' + encodeURIComponent(id), { method: 'DELETE' });
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+
+    /* RENDERERS */
+    function buildBrandCategoryLists(){
+      const brands = Array.from(new Set(products.map(p=>p.brand).filter(Boolean))).sort();
+      const cats = Array.from(new Set(products.map(p=>p.category).filter(Boolean))).sort();
+      brandSelect.innerHTML = '<option value="">— select —</option>' + brands.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+      categorySelect.innerHTML = '<option value="">— select —</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      categoryFilter.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+    function renderList(){
+      const q = searchInput.value.trim().toLowerCase();
+      const cat = categoryFilter.value;
+      const filtered = products.filter(p=>{
+        const s = (p.name + ' ' + (p.brand||'') + ' ' + (p.category||'') + ' ' + JSON.stringify(p.specs || {})).toLowerCase();
+        const matchesQ = !q || s.includes(q);
+        const matchesCat = !cat || p.category === cat;
+        return matchesQ && matchesCat;
+      });
+      productList.innerHTML = filtered.map(p=>`
+        <div class="row" role="listitem">
+          <img src="${p.images && p.images[0] ? p.images[0] : 'https://via.placeholder.com/300x200?text=No+Image'}" alt="${escapeHtml(p.name)}" />
+          <div class="meta">
+            <strong>${escapeHtml(p.name)}</strong>
+            <div class="small">${escapeHtml(p.brand) || ''} • ${escapeHtml(p.category) || ''}</div>
+            <div class="small">${p.price ? '$' + Number(p.price).toLocaleString() : ''} • ${p.stock ?? 0} in stock</div>
+            <div class="small">${Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>escapeHtml(k+': '+v)).join(' • ')}</div>
+          </div>
+          <div class="controls">
+            <button class="ghost" onclick="editProduct('${p.id}')">Edit</button>
+            <button class="ghost" onclick="copyId('${p.id}')">Copy ID</button>
+            <button class="ghost" onclick="duplicate('${p.id}')">Duplicate</button>
+            <button class="ghost danger" onclick="deleteProduct('${p.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('') || '<div class="small" style="padding:12px;color:var(--muted)">No products</div>';
+      buildBrandCategoryLists();
+      countBadge.textContent = `${products.length} items`;
+    }
+
+    function renderImagesPreview(){
+      imagesPreview.innerHTML = '';
+      (currentImages || []).forEach((src, i)=>{
+        const div = document.createElement('div'); div.className='img-thumb';
+        const img = document.createElement('img'); img.src = src; img.alt = 'img-'+(i+1);
+        const btn = document.createElement('button'); btn.type='button'; btn.title='Remove'; btn.textContent='✕';
+        btn.onclick = ()=>{ currentImages.splice(i,1); renderImagesPreview(); };
+        div.appendChild(img); div.appendChild(btn); imagesPreview.appendChild(div);
+      });
+      imagesInput.value = ''; // keep URL field separate
+    }
+
+    /* IMAGE UPLOAD HANDLERS */
+    uploadBtn.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', async (e)=>{
+      const files = Array.from(e.target.files || []);
+      for(const f of files){
+        if(!f.type.startsWith('image/')) continue;
+        await new Promise((res)=>{
+          const fr = new FileReader();
+          fr.onload = ()=>{ currentImages.push(fr.result); renderImagesPreview(); res(); };
+          fr.onerror = ()=> res();
+          fr.readAsDataURL(f);
+        });
+      }
+      fileInput.value = '';
+      toast('Images uploaded');
+    });
+
+    dropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropzone.style.borderColor = 'rgba(64,211,255,0.5)'; });
+    dropzone.addEventListener('dragleave', ()=>{ dropzone.style.borderColor = 'rgba(255,255,255,0.04)'; });
+    dropzone.addEventListener('drop', async (e)=> {
+      e.preventDefault(); dropzone.style.borderColor = 'rgba(255,255,255,0.04)';
+      const files = Array.from(e.dataTransfer.files || []);
+      for(const f of files){
+        if(!f.type.startsWith('image/')) continue;
+        await new Promise((res)=>{
+          const fr = new FileReader();
+          fr.onload = ()=>{ currentImages.push(fr.result); renderImagesPreview(); res(); };
+          fr.onerror = ()=>res();
+          fr.readAsDataURL(f);
+        });
+      }
+      toast('Dropped images added');
+    });
+
+    addUrlBtn.addEventListener('click', ()=>{
+      const url = imagesInput.value.trim();
+      if(!url){ toast('Paste an image URL first'); return; }
+      currentImages.push(url);
+      imagesInput.value = '';
+      renderImagesPreview();
+      toast('Image URL added');
+    });
+
+    /* COLORS & TAGS */
+    addColorBtn.addEventListener('click', ()=>{ const v = colorInput.value.trim(); if(!v) return; addChip(colorsChips, v); colorInput.value=''; });
+    addTagBtn.addEventListener('click', ()=>{ const v = tagInput.value.trim(); if(!v) return; addChip(tagsChips, v); tagInput.value=''; });
+
+    function addChip(container, text){
+      const existing = Array.from(container.querySelectorAll('.chip')).map(c=>c.dataset.value);
+      if(existing.includes(text)) return;
+      const el = document.createElement('div'); el.className='chip'; el.dataset.value = text;
+      el.innerHTML = `<span>${escapeHtml(text)}</span><button type="button" title="remove">✕</button>`;
+      el.querySelector('button').onclick = ()=>{ el.remove(); };
+      container.appendChild(el);
+    }
+
+    /* FORM CRUD (using API, fallback to localStorage) */
+    async function refreshFromServer(){
+      try{
+        const data = await apiGetProducts();
+        products = data || [];
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+        renderList();
+      }catch(e){
+        console.warn('Failed to fetch from API, falling back to localStorage', e);
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw){ localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleSeed)); products = safeClone(sampleSeed); }
+        else { try{ products = JSON.parse(raw); }catch(er){ products = safeClone(sampleSeed); localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); } }
+        renderList();
+      }
+    }
+
+    window.editProduct = function(id){
+      const p = products.find(x=>x.id===id);
+      if(!p) return;
+      idInput.value = p.id;
+      nameInput.value = p.name;
+      brandSelect.value = p.brand || '';
+      brandFree.value = p.brand || '';
+      categorySelect.value = p.category || '';
+      categoryFree.value = p.category || '';
+      releaseDate.value = p.release || '';
+      priceInput.value = p.price ?? '';
+      stockInput.value = p.stock ?? '';
+      activeChk.checked = !!p.active;
+      featuredChk.checked = !!p.featured;
+      const warr = p.warranty || '12';
+      [...document.getElementsByName('warranty')].forEach(r=> r.checked = (r.value === String(warr)));
+      const feats = p.features || [];
+      Array.from(featureChecks).forEach(ch => ch.checked = feats.includes(ch.value));
+      colorsChips.innerHTML = ''; tagsChips.innerHTML = '';
+      (p.colors || []).forEach(c=> addChip(colorsChips, c));
+      (p.tags || []).forEach(t=> addChip(tagsChips, t));
+      currentImages = (p.images || []).slice();
+      renderImagesPreview();
+      specInput.value = Object.entries(p.specs || {}).map(([k,v])=>`${k}: ${v}`).join('\n');
+      servicesInput.value = Object.entries(p.services || {}).map(([k,v])=>`${k}:${v}`).join('\n');
+      notesInput.value = p.notes || '';
+      revBox.textContent = (p.reviews || []).map(r=>`${r.name} (${r.rating}★): ${r.comment}`).join('\n\n') || 'No reviews';
+      updatePricePreview();
+      deleteBtn.disabled = false;
+      toast('Loaded for edit');
+      window.scrollTo({top:0,behavior:'smooth'});
+    };
+
+    window.copyId = function(id){
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(id).then(()=> toast('Copied ID: '+id));
+      }else{
+        const ta = document.createElement('textarea'); ta.value = id; document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); toast('Copied ID: '+id);}catch(e){ alert(id); } ta.remove();
+      }
+    };
+
+    window.duplicate = async function(id){
+      const p = products.find(x=>x.id===id); if(!p) return;
+      const copy = JSON.parse(JSON.stringify(p)); copy.id = generateId(copy.name + '-copy');
+      try{
+        await apiCreateProduct(copy);
+        await refreshFromServer();
+        toast('Duplicated ' + p.name);
+      }catch(e){
+        // fallback local
+        products.unshift(copy); try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(_){} renderList(); toast('Duplicated locally: ' + p.name);
+      }
+    };
+
+    window.deleteProduct = async function(id){
+      if(!confirm('Delete product and its reviews?')) return;
+      try{
+        await apiDeleteProduct(id);
+        await refreshFromServer();
+        productForm.reset(); currentImages=[]; renderImagesPreview(); previewArea.style.display='none'; toast('Deleted ' + id);
+      }catch(e){
+        console.warn('API delete failed, fallback local', e);
+        products = products.filter(p=>p.id!==id);
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(_){} renderList(); productForm.reset(); currentImages=[]; renderImagesPreview(); previewArea.style.display='none'; toast('Deleted locally ' + id);
+      }
+    };
+
+    productForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const name = nameInput.value.trim(); if(!name){ alert('Name required'); return; }
+      const idVal = idInput.value.trim();
+      const brand = brandFree.value.trim() || brandSelect.value || '';
+      const category = categoryFree.value.trim() || categorySelect.value || '';
+      const price = Number(priceInput.value) || 0;
+      const stock = Number(stockInput.value) || 0;
+      const active = !!activeChk.checked;
+      const featured = !!featuredChk.checked;
+      const release = releaseDate.value || '';
+      const warranty = (document.querySelector('input[name="warranty"]:checked') || {value:'12'}).value;
+      const features = Array.from(featureChecks).filter(c=>c.checked).map(c=>c.value);
+      const colors = Array.from(colorsChips.querySelectorAll('.chip')).map(c=>c.dataset.value);
+      const tags = Array.from(tagsChips.querySelectorAll('.chip')).map(c=>c.dataset.value);
+      const specs = parseSpecs(specInput.value);
+      const services = parseServices(servicesInput.value);
+      const notes = notesInput.value.trim();
+      const images = currentImages.slice();
+      let id = idVal || generateId(name);
+      const existingIndex = products.findIndex(p=>p.id===id);
+      const item = { id, name, brand, category, price, stock, active, featured, release, warranty, features, colors, tags, images, specs, services, notes, reviews: (existingIndex !== -1 ? products[existingIndex].reviews || [] : []) };
+
+      try{
+        if(existingIndex !== -1){
+          await apiUpdateProduct(id, item);
+          toast('Updated ' + name);
+        } else {
+          await apiCreateProduct(item);
+          toast('Created ' + name);
+        }
+        await refreshFromServer();
+        productForm.reset(); currentImages=[]; renderImagesPreview(); previewArea.style.display='none'; deleteBtn.disabled = true;
+      }catch(err){
+        console.warn('API save failed, fallback to local', err);
+        if(existingIndex !== -1){
+          products[existingIndex] = item;
+        }else{
+          products.unshift(item);
+        }
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+        renderList();
+        productForm.reset(); currentImages=[]; renderImagesPreview(); previewArea.style.display='none'; deleteBtn.disabled = true;
+        toast('Saved locally (API down)');
+      }
+    });
+
+    deleteBtn.addEventListener('click', ()=>{
+      const idVal = idInput.value.trim(); if(!idVal){ alert('Provide ID to delete'); return; } window.deleteProduct(idVal);
+    });
+
+    newBtn.addEventListener('click', ()=>{ productForm.reset(); currentImages=[]; renderImagesPreview(); colorsChips.innerHTML=''; tagsChips.innerHTML=''; revBox.textContent='Reviews appear when users add them in store.'; deleteBtn.disabled=true; });
+
+    /* preview */
+    previewBtn.addEventListener('click', ()=>{
+      const imgs = currentImages.slice(0,6);
+      previewArea.innerHTML = imgs.map(src=>`<div class="preview-card"><img src="${src}" alt="preview"/><div style="margin-top:8px;font-size:13px">${escapeHtml(nameInput.value||'Preview')}</div></div>`).join('') || '<div class="small" style="grid-column:1/-1">No images to preview</div>';
+      previewArea.style.display = 'grid';
+    });
+
+    /* export / import / reset */
+    exportBtn.addEventListener('click', async ()=>{
+      try{
+        const data = await apiGetProducts();
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'phoneShop-export.json'; a.click(); URL.revokeObjectURL(url);
+        toast('Export started');
+      }catch(e){
+        // fallback local
+        const raw = localStorage.getItem(STORAGE_KEY) || JSON.stringify(sampleSeed, null, 2);
+        const blob = new Blob([raw], {type:'application/json'});
+        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'phoneShop-export.json'; a.click(); URL.revokeObjectURL(url);
+        toast('Exported from local data');
+      }
+    });
+
+    importBtn.addEventListener('click', ()=>{
+      const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+      input.onchange = async (e)=>{
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = async function(){
+          try{
+            const parsed = JSON.parse(r.result);
+            if(!Array.isArray(parsed)){ alert('Invalid file'); return; }
+            // Try to POST each item to API; fallback to local if API fails
+            try{
+              for(const p of parsed){
+                // Upsert: if exists -> PUT, else POST
+                const exists = products.find(x=>x.id === p.id);
+                if(exists){
+                  await apiUpdateProduct(p.id, p);
+                } else {
+                  await apiCreateProduct(p);
+                }
+              }
+              await refreshFromServer();
+              toast('Imported ' + parsed.length + ' items (server)');
+            }catch(apiErr){
+              // fallback: write to localStorage
+              products = parsed;
+              try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+              renderList();
+              toast('Imported locally (API fail)');
+            }
+          }catch(err){ alert('Invalid JSON'); }
+        };
+        r.readAsText(f);
+      };
+      input.click();
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      if(!confirm('Reset sample data? This will overwrite your local data.')) return;
+      try{
+        // try to upload sample seed to server
+        (async ()=>{
+          try{
+            // wipe by deleting known items: easiest approach is to import sample seed items (upsert)
+            for(const s of sampleSeed){
+              const exists = products.find(x=>x.id === s.id);
+              if(exists) await apiUpdateProduct(s.id, s);
+              else await apiCreateProduct(s);
+            }
+            await refreshFromServer();
+            toast('Reset to sample data (server)');
+          }catch(e){
+            // fallback to local
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleSeed));
+            products = safeClone(sampleSeed);
+            renderList();
+            toast('Reset locally to sample data');
+          }
+        })();
+      }catch(e){
+        console.error(e);
+      }
+    });
+
+    openStore.addEventListener('click', () => { window.location.href = 'index.html'; });
+
+    /* search / filter */
+    searchInput.addEventListener('input', renderList);
+    categoryFilter.addEventListener('change', renderList);
+
+    /* price buttons and ID gen */
+    incPrice.addEventListener('click', ()=>{ priceInput.value = (Number(priceInput.value) || 0) + 1; updatePricePreview();});
+    decPrice.addEventListener('click', ()=>{ priceInput.value = Math.max(0,(Number(priceInput.value) || 0) - 1); updatePricePreview();});
+    priceInput.addEventListener('input', updatePricePreview);
+    function updatePricePreview(){ pricePreview.textContent = priceInput.value ? '$' + Number(priceInput.value).toLocaleString() : 'no price'; }
+
+    genIdBtn.addEventListener('click', ()=>{ const nm = nameInput.value.trim(); if(!nm){ alert('Enter a name first'); return; } const id = generateId(nm); idInput.value = id; toast('Generated ID: ' + id); });
+
+    colorInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addColorBtn.click(); }});
+    tagInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addTagBtn.click(); }});
+
+    /* populate lists on init */
+    async function init(){
+      await refreshFromServer();
+      deleteBtn.disabled = true;
+    }
+    init();
+
+    // expose small admin helper
+    window._admin = { refresh: refreshFromServer };
+  </script>
+</body>
+</html>
