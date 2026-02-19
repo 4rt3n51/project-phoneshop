@@ -1,0 +1,25 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log
+.env
+.env.local
+.env.*.local
+
+# PM2
+pids/
+*.pid
+pm2.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+dist/
+tmp/
+*.log
+
+# IDE
+.vscode/
+.idea/
