@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PhoneShop</title>
+  <style>
+    :root{
+      --bg:#071427;
+      --panel:#0b1b2b;
+      --card:#0f2637;
+      --accent:#40d3ff;
+      --accent-2:#6b8cff;
+      --muted:#98b0c6;
+      --glass: rgba(255,255,255,0.03);
+      --glass-2: rgba(255,255,255,0.02);
+      --success:#24d38a;
+      --danger:#ff6b6b;
+      --radius:12px;
+      --shadow: 0 10px 30px rgba(2,10,20,0.6);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      font-size:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:
+      radial-gradient(800px 400px at 10% 10%, rgba(64,211,255,0.05), transparent),
+      linear-gradient(180deg,#041225 0%, #061129 60%, #071427 100%);
+      color:#e9f4ff;-webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; line-height:1.45;}
+    header{
+      display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 28px;border-bottom:1px solid rgba(255,255,255,0.04);
+      position:sticky;top:0;background:linear-gradient(180deg, rgba(4,8,16,0.6), rgba(4,8,16,0.35));backdrop-filter:blur(6px);z-index:40;
+    }
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#041225;font-size:18px;box-shadow:var(--shadow)}
+    .title{font-size:18px;font-weight:700}
+    .subtitle{font-size:13px;color:var(--muted);margin-top:2px}
+    .controls{display:flex;gap:12px;align-items:center}
+    .search{
+      background:var(--glass);border:1px solid rgba(255,255,255,0.06);padding:10px 12px;border-radius:12px;color:inherit;outline:none;transition:0.12s;min-width:300px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .search:focus{box-shadow:0 12px 30px rgba(64,211,255,0.06);transform:translateY(-2px);border-color:var(--accent)}
+    .filter{background:linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01));border-radius:12px;padding:8px;display:flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,0.03)}
+    .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#041225;padding:10px 12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;transition:transform .12s, box-shadow .12s}
+    .btn:hover{transform:translateY(-3px)}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:10px;color:var(--muted);cursor:pointer}
+    main{padding:28px;max-width:1200px;margin:0 auto}
+    .top-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    option{background-color: #06263b;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.search{min-width:220px}}
+    @media (max-width:700px){.grid{grid-template-columns:1fr}.controls{flex-wrap:wrap}.search{min-width:140px}}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;padding:14px;box-shadow:var(--shadow);transition:transform .16s, box-shadow .16s;overflow:hidden;border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;height:100%;
+    }
+    .card:hover{transform:translateY(-10px);box-shadow:0 28px 60px rgba(3,10,25,0.6)}
+    .thumb{height:200px;border-radius:10px;background-size:cover;background-position:center;margin-bottom:12px;position:relative;overflow:hidden;flex-shrink:0;box-shadow:inset 0 -30px 40px rgba(0,0,0,0.2)}
+    .chip{position:absolute;top:12px;left:12px;background:linear-gradient(90deg,#00000066,#00000022);padding:8px 10px;border-radius:12px;font-size:13px;color:#fff}
+    .name{font-weight:800;font-size:16px;color:#eaf6ff}
+    .desc{color:var(--muted);font-size:14px;margin-top:6px;min-height:40px}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:12px}
+    .price{font-size:18px;color:var(--accent);font-weight:900}
+    .specs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .specs span{background:var(--glass-2);padding:6px 8px;border-radius:10px;font-size:13px;color:var(--muted)}
+    .rating{display:flex;gap:6px;align-items:center;color:gold;font-weight:700}
+    .footer-actions{display:flex;gap:8px;margin-top:10px;align-items:center}
+    .add{background:linear-gradient(90deg,#24d38a,#1a9f6e);color:#041225}
+    .badge{background:#041225;color:var(--accent);padding:6px 10px;border-radius:10px;font-weight:800;font-size:13px}
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(3,8,16,0.6),rgba(3,8,16,0.85));backdrop-filter: blur(6px);z-index:60;opacity:0;pointer-events:none;transition:opacity .18s}
+    .modal.show{opacity:1;pointer-events:auto}
+    .modal-content{background:linear-gradient(180deg,#071526, #06263b);padding:20px;border-radius:12px;width:min(1100px,96%);max-height:90vh;overflow:auto;box-shadow:var(--shadow);transform:translateY(20px);transition:transform .22s;border:1px solid rgba(255,255,255,0.04)}
+    .modal.show .modal-content{transform:translateY(0)}
+    .modal-grid{display:grid;grid-template-columns:420px 1fr;gap:18px}
+    @media (max-width:980px){.modal-grid{grid-template-columns:1fr}}
+    .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .thumbs img{width:84px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent}
+    .thumbs img.active{border-color:var(--accent)}
+    .big{height:360px;border-radius:10px;object-fit:cover;width:100%;background:#061425;display:block}
+    .spec-list{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px}
+    .spec-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .spec-table td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);vertical-align:top;font-size:14px;color:#e9f4ff}
+    .reviews{margin-top:12px;max-height:220px;overflow:auto;padding-right:6px}
+    .review{padding:10px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:8px}
+    .cart-btn{position:fixed;right:22px;bottom:22px;border-radius:14px;padding:12px 14px;background:linear-gradient(90deg,#6b8cff,#00d4ff);box-shadow:0 22px 48px rgba(24,60,184,0.18);display:flex;gap:10px;align-items:center;cursor:pointer;z-index:50}
+    .cart-count{background:#041225;color:var(--accent);padding:6px 10px;border-radius:12px;font-weight:800}
+    footer{padding:18px;text-align:center;color:var(--muted);font-size:13px;margin-top:18px}
+    .muted{color:var(--muted)}
+    .service-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .service{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .accessibility-focus { outline: 3px solid rgba(64,211,255,0.12); outline-offset: 2px; }
+    /* accessibility focus */
+    button:focus, .ghost:focus, .btn:focus, input:focus, select:focus, textarea:focus { outline: 3px solid rgba(64,211,255,0.12); outline-offset: 2px; }
+    /* responsive description improvements */
+    .card .desc{min-height:48px}
+    .chip{font-weight:700}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">PS</div>
+      <div>
+        <div class="title">PhoneShop</div>
+        <div class="subtitle">Phones • Watches • Pods • Laptops • Tablets</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input id="search" class="search" placeholder="Search phones, laptops..." aria-label="Search products" />
+      <div class="filter" role="search">
+        <select id="categoryFilter" style="background:transparent;border:none;color:inherit;outline:none">
+          <option value="">All categories</option>
+        </select>
+        <button id="clearFilters" class="ghost">Clear</button>
+      </div>
+      <button id="openAdmin" class="ghost">Admin</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="top-bar">
+      <div>
+        <h2 style="margin:0">Products & Services</h2>
+        <div class="small muted">Tap a product card for details and specs</div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="small muted">Showing <span id="count">0</span> items</div>
+        <button id="viewGrid" class="ghost">Compact View</button>
+      </div>
+    </div>
+
+    <section id="grid" class="grid" aria-live="polite"></section>
+  </main>
+
+  <div id="productModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h3 id="modalTitle" style="margin:0">Product</h3>
+          <div class="small muted" id="modalBrand"></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <div id="modalPrice" class="badge"></div>
+          <button id="closeModal" class="ghost">Close</button>
+        </div>
+      </div>
+
+      <div class="modal-grid" style="margin-top:14px">
+        <div>
+          <img id="modalMainImg" class="big" alt="Product image" />
+          <div class="thumbs" id="modalThumbs"></div>
+        </div>
+
+        <div>
+          <div class="spec-list">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-weight:800" id="modalFullName"></div>
+              <div id="modalCategory" class="badge"></div>
+            </div>
+
+            <table class="spec-table" id="modalSpecTable" aria-hidden="false"></table>
+
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button id="addToCart" class="btn add">Add to cart</button>
+              <button id="showServices" class="ghost">Services</button>
+            </div>
+
+            <div id="serviceArea" style="display:none" class="service-list"></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <h4 style="margin:6px 0">Reviews</h4>
+              <div id="avgRating" class="rating" aria-live="polite"></div>
+            </div>
+            <div id="reviews" class="reviews"></div>
+
+            <div style="margin-top:10px">
+              <h5 style="margin:6px 0">Write a review</h5>
+              <input id="revName" placeholder="Your name" style="color:white;padding:10px;border-radius:10px;border:none;background:rgba(255,255,255,0.02);margin-bottom:8px" />
+              <select id="revRating" style="color:white;padding:10px;border-radius:10px;border:none;background:rgba(255,255,255,0.02);margin-bottom:8px">
+                <option value="5">★★★★★ 5</option>
+                <option value="4">★★★★ 4</option>
+                <option value="3">★★★ 3</option>
+                <option value="2">★★ 2</option>
+                <option value="1">★ 1</option>
+              </select>
+              <textarea id="revText" placeholder="Write your review..." style="color:white;width:100%;padding:10px;border-radius:10px;border:none;background:rgba(255,255,255,0.02);margin-bottom:8px"></textarea>
+              <button id="submitReview" class="btn">Submit review</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cartBtn" class="cart-btn" aria-label="Open cart">
+    <div style="font-weight:800">Cart</div>
+    <div id="cartCount" class="cart-count">0</div>
+  </div>
+
+  <footer>Tip: Admin page stores data on the server (API). Open admin.html to manage products and services.</footer>
+
+  <script>
+    // localStorage key retained as fallback
+    const STORAGE_KEY = 'phoneShopProducts_v1';
+
+    // App state
+    let products = []; // will be loaded from API or fallback
+    let cart = JSON.parse(localStorage.getItem('phoneShopCart_v1') || '[]');
+
+    // DOM refs
+    const grid = document.getElementById('grid');
+    const searchInput = document.getElementById('search');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const openAdminBtn = document.getElementById('openAdmin');
+    const cartBtn = document.getElementById('cartBtn');
+    const cartCount = document.getElementById('cartCount');
+    const countEl = document.getElementById('count');
+    const viewGridBtn = document.getElementById('viewGrid');
+
+    // Modal refs
+    const modal = document.getElementById('productModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMainImg = document.getElementById('modalMainImg');
+    const modalThumbs = document.getElementById('modalThumbs');
+    const modalPrice = document.getElementById('modalPrice');
+    const modalBrand = document.getElementById('modalBrand');
+    const modalCategory = document.getElementById('modalCategory');
+    const modalFullName = document.getElementById('modalFullName');
+    const modalSpecTable = document.getElementById('modalSpecTable');
+    const serviceArea = document.getElementById('serviceArea');
+    const showServicesBtn = document.getElementById('showServices');
+    const addToCartBtn = document.getElementById('addToCart');
+    const closeModalBtn = document.getElementById('closeModal');
+
+    const reviewsEl = document.getElementById('reviews');
+    const avgRatingEl = document.getElementById('avgRating');
+    const submitReviewBtn = document.getElementById('submitReview');
+    const revName = document.getElementById('revName');
+    const revRating = document.getElementById('revRating');
+    const revText = document.getElementById('revText');
+
+    // Utils
+    function formatPrice(n){ return '$' + Number(n).toLocaleString(); }
+    function uniqueCategories(list){ return Array.from(new Set(list.map(p=>p.category))).filter(Boolean); }
+    function avgRating(reviews){ if(!reviews || reviews.length===0) return 0; return (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length); }
+    function truncate(s,len=90){ return s && s.length>len ? s.slice(0,len-1)+'…' : s || ''; }
+    function escapeHtml(s){ if(s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    // Robust service value parser: admin may save numbers or strings like "$199"
+    function parseServiceValue(val){
+      if (typeof val === 'number' && Number.isFinite(val)) return val;
+      if (typeof val === 'string'){
+        const cleaned = val.replace(/[^\d.-]+/g, '');
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+      }
+      return null;
+    }
+
+    // API helpers with fallback
+    async function fetchProductsFromAPI(){
+      const res = await fetch('/api/products');
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+    async function fetchProductById(id){
+      const res = await fetch('/api/products/' + encodeURIComponent(id));
+      if(!res.ok) throw new Error('api error');
+      return await res.json();
+    }
+
+    async function loadProducts(){
+      try{
+        const data = await fetchProductsFromAPI();
+        products = data || [];
+        // optionally store to localStorage for offline fallback
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+      }catch(e){
+        console.warn('API products fetch failed, falling back to localStorage', e);
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw){ localStorage.setItem(STORAGE_KEY, JSON.stringify([])); products = []; }
+        else {
+          try{ products = JSON.parse(raw); }catch(err){ products = []; localStorage.setItem(STORAGE_KEY, JSON.stringify([])); }
+        }
+      }
+    }
+
+    // Render category filter
+    function renderCategoryOptions(){
+      const cats = uniqueCategories(products);
+      categoryFilter.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+    // Grid and view
+    let compactView = false;
+    viewGridBtn.addEventListener('click', ()=>{ compactView = !compactView; viewGridBtn.textContent = compactView ? 'Card View' : 'Compact View'; renderGrid(); });
+
+    function renderGrid(){
+      const q = searchInput.value.trim().toLowerCase();
+      const cat = categoryFilter.value;
+      const filtered = products.filter(p=>{
+        const matchesQ = !q || (p.name + ' ' + (p.brand||'') + ' ' + (p.category||'') + ' ' + JSON.stringify(p.specs)).toLowerCase().includes(q);
+        const matchesCat = !cat || p.category === cat;
+        return matchesQ && matchesCat;
+      });
+      countEl.textContent = filtered.length;
+      renderCategoryOptions();
+      grid.innerHTML = filtered.map(p => {
+        const firstImg = p.images && p.images[0] ? p.images[0] : 'https://via.placeholder.com/800x600?text=No+Image';
+        const rating = avgRating(p.reviews).toFixed(1);
+        const revCount = (p.reviews||[]).length;
+        const specPreview = Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>`${k}: ${v}`).join(' • ');
+        if(compactView){
+          return `
+            <div class="card" style="display:flex;gap:12px;align-items:center;">
+              <div style="width:120px;height:84px;border-radius:8px;background-image:url('${firstImg}');background-size:cover;background-position:center;flex-shrink:0;box-shadow:inset 0 -20px 30px rgba(0,0,0,0.25)"></div>
+              <div style="flex:1">
+                <div class="name" style="font-size:15px">${escapeHtml(p.name)}</div>
+                <div class="small muted">${escapeHtml(p.brand)} • ${escapeHtml(p.category)}</div>
+                <div class="desc" style="margin-top:8px">${escapeHtml(truncate(specPreview,110))}</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                  <div class="small muted">${rating>0?rating+' ★ • '+revCount+' reviews': 'No reviews'}</div>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <div class="price">${formatPrice(p.price)}</div>
+                    <button class="ghost" onclick="openProduct('${p.id}')">Details</button>
+                    <button class="btn add" onclick="addToCart('${p.id}')">Buy</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }
+        return `
+        <div class="card" role="article" aria-labelledby="card-${p.id}">
+          <div class="thumb" style="background-image:url('${firstImg}')">
+            <div class="chip">${escapeHtml(p.brand || 'Brand')}</div>
+          </div>
+          <div id="card-${p.id}" class="name">${escapeHtml(p.name)}</div>
+          <div class="desc" title="${escapeHtml(specPreview)}">${escapeHtml(truncate(specPreview,120))}</div>
+          <div class="specs">${Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>`<span title="${escapeHtml(k)}">${escapeHtml(k)}: ${escapeHtml(String(v))}</span>`).join('')}</div>
+          <div class="meta">
+            <div class="price">${formatPrice(p.price)}</div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <div class="rating">${avgRating(p.reviews).toFixed(1)} ★</div>
+              <div class="badge">${escapeHtml(p.category)}</div>
+            </div>
+          </div>
+          <div class="footer-actions">
+            <button class="ghost" onclick="openProduct('${p.id}')">Details</button>
+            <button class="btn add" onclick="addToCart('${p.id}')">Buy</button>
+          </div>
+        </div>`;
+      }).join('') || '<div style="grid-column:1/-1;color:var(--muted);padding:24px;text-align:center">No products found</div>';
+      updateCartCount();
+    }
+
+// in index.html script (replace existing window.openProduct)
+window.openProduct = async function(id){
+  try {
+    // try to fetch from API for the most up-to-date data (includes reviews)
+    const res = await fetch('/api/products/' + encodeURIComponent(id));
+    if(!res.ok) throw new Error('fetch failed');
+    const p = await res.json();
+
+    // populate modal with p (same as before)
+    modalTitle.textContent = p.name;
+    modalFullName.textContent = p.name;
+    modalBrand.textContent = p.brand || '';
+    modalCategory.textContent = p.category || '';
+    modalPrice.textContent = formatPrice(p.price);
+    modalMainImg.src = (p.images && p.images[0]) ? p.images[0] : 'https://via.placeholder.com/1200x800?text=No+Image';
+    modalThumbs.innerHTML = (p.images||[]).map((src, i)=>`<img src="${src}" data-src="${src}" onclick="selectModalImg(this)" class="${i===0? 'active':''}" alt="${escapeHtml(p.name)} image ${i+1}"/>`).join('');
+    modalSpecTable.innerHTML = Object.entries(p.specs || {}).map(([k,v])=>`<tr><td style="width:35%;font-weight:600">${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('');
+
+    // services
+    serviceArea.innerHTML = '';
+    if (p.services && Object.keys(p.services).length) {
+      for (const [k, v] of Object.entries(p.services)) {
+        const parsed = parseServiceValue(v);
+        const priceLabel = parsed !== null ? formatPrice(parsed) : escapeHtml(String(v));
+        const el = document.createElement('div');
+        el.className = 'service';
+        el.innerHTML = `<div class="small">${escapeHtml(k)}</div><div style="font-weight:800">${priceLabel}</div>`;
+        serviceArea.appendChild(el);
+      }
+    } else {
+      serviceArea.innerHTML = '<div class="small muted">No services available</div>';
+    }
+
+    serviceArea.style.display = 'none';
+    showServicesBtn.textContent = 'Services';
+
+    // render reviews using existing function
+    renderReviewsFor(p);
+
+    addToCartBtn.onclick = ()=>{ addToCart(p.id); };
+    modal.dataset.pid = p.id;
+    showModal();
+  } catch (err) {
+    console.warn('API fetch for product failed, falling back to local copy', err);
+    // fallback to previous behavior: use in-memory products
+    const p = products.find(x=>x.id===id);
+    if(!p) return;
+    // existing code to populate modal from p...
+    // (you can reuse the old modal population code here)
+  }
+};
+
+
+    window.selectModalImg = function(imgEl){
+      [...modalThumbs.querySelectorAll('img')].forEach(i=>i.classList.remove('active'));
+      imgEl.classList.add('active');
+      modalMainImg.src = imgEl.dataset.src;
+    };
+
+    // Toggle services visibility
+    showServicesBtn.addEventListener('click', ()=>{
+      serviceArea.style.display = serviceArea.style.display === 'none' ? 'block' : 'none';
+      showServicesBtn.textContent = serviceArea.style.display === 'none' ? 'Services' : 'Hide services';
+    });
+
+    function showModal(){ modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
+    function hideModal(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+    closeModalBtn.addEventListener('click', hideModal);
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
+
+    // Reviews: render and submit via API
+    function renderReviewsFor(product){
+      const list = (product.reviews || []).slice().sort((a,b)=>b.date-a.date);
+      if(list.length===0){
+        reviewsEl.innerHTML = '<div style="color:var(--muted)">No reviews yet</div>';
+        avgRatingEl.textContent = '';
+        return;
+      }
+      avgRatingEl.textContent = avgRating(list).toFixed(1) + ' ★';
+      reviewsEl.innerHTML = list.map(r=>`<div class="review"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${escapeHtml(r.name)}</strong><div class="rating">${'★'.repeat(r.rating)}</div></div><div style="color:var(--muted);font-size:14px;margin-top:6px">${escapeHtml(r.comment)}</div><div style="color:var(--muted);font-size:12px;margin-top:6px">${new Date(r.date).toLocaleString()}</div></div>`).join('');
+    }
+
+    submitReviewBtn.addEventListener('click', async ()=>{
+      const pid = modal.dataset.pid;
+      if(!pid) return;
+      const name = revName.value.trim() || 'Anonymous';
+      const rating = Number(revRating.value);
+      const comment = revText.value.trim();
+      if(!comment){ alert('Please write a comment'); return; }
+
+      // Post review to API; fallback to local update if API fails
+      try {
+        const res = await fetch('/api/products/' + encodeURIComponent(pid) + '/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, rating, comment })
+        });
+        if(!res.ok) throw new Error('api failed');
+        // refresh product data from server
+        try {
+          const updated = await fetchProductById(pid);
+          // ensure reviews field is compatible (could be in separate table)
+          const idx = products.findIndex(p=>p.id===pid);
+          if(idx !== -1) products[idx] = updated;
+          renderReviewsFor(updated);
+          renderGrid();
+        }catch(e){
+          // if fetching product fails, reload all
+          await reloadProductsSafely();
+        }
+        revName.value = ''; revText.value = '';
+        toast('Thanks for your review');
+      } catch (err) {
+        console.warn('Posting review to API failed, falling back to local', err);
+        // local fallback: store in products array & localStorage
+        const idx = products.findIndex(p=>p.id===pid);
+        if(idx===-1) return;
+        products[idx].reviews = products[idx].reviews || [];
+        const rev = { name, rating, comment, date: Date.now() };
+        products[idx].reviews.unshift(rev);
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+        renderReviewsFor(products[idx]);
+        renderGrid();
+        revName.value=''; revText.value='';
+        toast('Review saved locally (offline)');
+      }
+    });
+
+    // Reload products from API with fallback
+    async function reloadProductsSafely(){
+      try{
+        const data = await fetchProductsFromAPI();
+        products = data || [];
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
+        renderGrid();
+      }catch(e){
+        console.warn('Reload failed', e);
+      }
+    }
+
+    // Cart
+    function addToCart(pid){
+      const p = products.find(x=>x.id===pid);
+      if(!p) return;
+      const existing = cart.find(c=>c.id===pid);
+      if(existing) existing.qty++;
+      else cart.push({id: p.id, name: p.name, price: p.price, qty:1});
+      saveCart();
+      updateCartCount();
+      toast(`${p.name} added to cart`);
+    }
+    function saveCart(){ localStorage.setItem('phoneShopCart_v1', JSON.stringify(cart)); }
+    function updateCartCount(){ const total = cart.reduce((s,i)=>s+i.qty,0); cartCount.textContent = total; }
+
+    cartBtn.addEventListener('click', ()=>{
+      const items = cart.map((c,i)=>`${i+1}. ${c.name} x${c.qty} — ${formatPrice(c.price*c.qty)}`).join('\n') || 'Cart is empty';
+      const total = cart.reduce((s,i)=>s+i.qty*i.price,0);
+      if(!cart.length){ alert(items); }else{
+        if(confirm(items + '\n\nCheckout total: ' + formatPrice(total) + '\n\nProceed to checkout?')){
+          cart = []; saveCart(); updateCartCount(); alert('Thanks! Demo checkout complete.');
+        }
+      }
+    });
+
+    // Filters events
+    searchInput.addEventListener('input', ()=>renderGrid());
+    categoryFilter.addEventListener('change', ()=>renderGrid());
+    clearFiltersBtn.addEventListener('click', ()=>{ searchInput.value = ''; categoryFilter.value = ''; renderGrid(); });
+
+    openAdminBtn.addEventListener('click', () => {
+      window.location.href = 'admin.html';
+    });
+    // small toast
+    let toastTimeout;
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg;
+      Object.assign(t.style, {position:'fixed',left:'50%',transform:'translateX(-50%)',bottom:'90px',background:'#041225',color:'var(--accent)',padding:'10px 14px',borderRadius:'10px',boxShadow:'0 8px 30px rgba(0,0,0,0.6)',zIndex:200});
+      document.body.appendChild(t);
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(()=>{ t.style.opacity='0'; t.style.transform+=' translateY(6px)'; setTimeout(()=>t.remove(),250); }, 1800);
+    }
+
+    // init async
+    (async function init(){
+      await loadProducts();
+      renderGrid();
+      updateCartCount();
+      // expose small API
+      window._phoneShop = {
+        refresh: async ()=>{ await reloadProductsSafely(); }
+      };
+    })();
+  </script>
+</body>
+</html>
