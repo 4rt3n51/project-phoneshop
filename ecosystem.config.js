@@ -11,3 +11,11 @@ module.exports = {
     }
   ]
 };
+env_production: {
+  DB_HOST: "database-1.cctawceo4pkq.us-east-1.rds.amazonaws.com",
+  DB_USER: "admin",
+  DB_PASSWORD: "F3bruary!26",
+  DB_NAME: "PhoneShop",
+  NODE_ENV: "production",
+  PORT: 3000
+}
