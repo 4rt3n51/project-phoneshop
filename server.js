@@ -80,7 +80,7 @@ function normalizeProduct(row) {
     tags: Array.isArray(tags) ? tags : [],
     active: row.active === undefined ? true : Boolean(row.active),
     featured: row.featured === undefined ? false : Boolean(row.featured),
-    release: toDateString(row.release),
+    release: toDateString(row.release || row.release_date),
     warranty: row.warranty || '',
     notes: row.notes || '',
     created_at: row.created_at
@@ -104,6 +104,12 @@ function quoteColumn(columnName) {
   return `\`${columnName}\``;
 }
 
+function getReleaseColumnName() {
+  if (hasProductColumn('release')) return 'release';
+  if (hasProductColumn('release_date')) return 'release_date';
+  return null;
+}
+
 function isDuplicateColumnError(error) {
   return error && error.code === 'ER_DUP_FIELDNAME';
 }
@@ -122,7 +128,7 @@ async function ensureProductsColumns() {
   if (!existing.has('tags')) missing.push({ name: 'tags', ddl: 'ALTER TABLE products ADD COLUMN tags JSON NULL' });
   if (!existing.has('active')) missing.push({ name: 'active', ddl: 'ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1' });
   if (!existing.has('featured')) missing.push({ name: 'featured', ddl: 'ALTER TABLE products ADD COLUMN featured TINYINT(1) NOT NULL DEFAULT 0' });
-  if (!existing.has('release')) missing.push({ name: 'release', ddl: 'ALTER TABLE products ADD COLUMN release DATE NULL' });
+  if (!existing.has('release') && !existing.has('release_date')) missing.push({ name: 'release', ddl: 'ALTER TABLE products ADD COLUMN release DATE NULL' });
   if (!existing.has('warranty')) missing.push({ name: 'warranty', ddl: 'ALTER TABLE products ADD COLUMN warranty VARCHAR(20) NULL' });
   if (!existing.has('notes')) missing.push({ name: 'notes', ddl: 'ALTER TABLE products ADD COLUMN notes TEXT NULL' });
 
@@ -303,7 +309,8 @@ app.post('/api/products', async (req, res) => {
     const columns = ['id', 'name', 'brand', 'category', 'price', 'stock', 'colors', 'features'];
     const values = [id, payload.name, payload.brand, payload.category, payload.price, payload.stock, payload.colors, payload.features];
     const updateColumns = ['name', 'brand', 'category', 'price', 'stock', 'colors', 'features'];
-    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'release', 'warranty', 'notes'];
+    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'warranty', 'notes'];
+    const releaseColumn = getReleaseColumnName();
 
     for (const col of optionalColumns) {
       if (hasProductColumn(col)) {
@@ -311,6 +318,12 @@ app.post('/api/products', async (req, res) => {
         values.push(payload[col]);
         updateColumns.push(col);
       }
+    }
+
+    if (releaseColumn) {
+      columns.push(releaseColumn);
+      values.push(payload.release);
+      updateColumns.push(releaseColumn);
     }
 
     const sql = `INSERT INTO products (${columns.map(quoteColumn).join(', ')})
@@ -361,13 +374,19 @@ app.put('/api/products/:id', async (req, res) => {
       payload.colors,
       payload.features
     ];
-    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'release', 'warranty', 'notes'];
+    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'warranty', 'notes'];
+    const releaseColumn = getReleaseColumnName();
 
     for (const col of optionalColumns) {
       if (hasProductColumn(col)) {
         setColumns.push(col);
         setValues.push(payload[col]);
       }
+    }
+
+    if (releaseColumn) {
+      setColumns.push(releaseColumn);
+      setValues.push(payload.release);
     }
 
     const sql = `UPDATE products
