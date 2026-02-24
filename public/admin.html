@@ -618,7 +618,7 @@
         try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }catch(e){}
         renderList();
         productForm.reset(); currentImages=[]; renderImagesPreview(); previewArea.style.display='none'; deleteBtn.disabled = true;
-        toast('Saved locally (API down)');
+        toast('Not saved to database. Saved only in this browser (API error).', 3200);
       }
     });
 

@@ -83,6 +83,33 @@ async function q(sql, params = []) {
   return rows;
 }
 
+function isDuplicateColumnError(error) {
+  return error && error.code === 'ER_DUP_FIELDNAME';
+}
+
+async function ensureProductsColumns() {
+  const columns = await q(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'`
+  );
+
+  const existing = new Set(columns.map((c) => c.COLUMN_NAME));
+  const missing = [];
+
+  if (!existing.has('specs')) missing.push({ name: 'specs', ddl: 'ALTER TABLE products ADD COLUMN specs JSON NULL' });
+  if (!existing.has('notes')) missing.push({ name: 'notes', ddl: 'ALTER TABLE products ADD COLUMN notes TEXT NULL' });
+
+  for (const col of missing) {
+    try {
+      await q(col.ddl);
+      console.log(`Added missing products.${col.name} column`);
+    } catch (error) {
+      if (!isDuplicateColumnError(error)) throw error;
+    }
+  }
+}
+
 function normalizeImageUrls(images) {
   if (!Array.isArray(images)) return [];
   return images
@@ -413,6 +440,16 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'server error' });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`PhoneShop listening on http://${HOST}:${PORT}`);
-});
+async function start() {
+  try {
+    await ensureProductsColumns();
+  } catch (error) {
+    console.error('Failed to ensure products schema for specs/notes', error);
+  }
+
+  app.listen(PORT, HOST, () => {
+    console.log(`PhoneShop listening on http://${HOST}:${PORT}`);
+  });
+}
+
+start();
