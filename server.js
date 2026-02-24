@@ -53,6 +53,13 @@ function maybeNumber(value) {
   return value;
 }
 
+function toDateString(value) {
+  if (!value) return '';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const s = String(value);
+  return s.includes('T') ? s.slice(0, 10) : s;
+}
+
 function normalizeProduct(row) {
   const colors = parseJsonField(row.colors, []);
   const features = parseJsonField(row.features, []);
@@ -72,7 +79,8 @@ function normalizeProduct(row) {
     tags: Array.isArray(tags) ? tags : [],
     active: row.active === undefined ? true : Boolean(row.active),
     featured: row.featured === undefined ? false : Boolean(row.featured),
-    release: row.release || '',
+    release: toDateString(row.release),
+    warranty: row.warranty || '',
     notes: row.notes || '',
     created_at: row.created_at
   };
@@ -98,6 +106,11 @@ async function ensureProductsColumns() {
   const missing = [];
 
   if (!existing.has('specs')) missing.push({ name: 'specs', ddl: 'ALTER TABLE products ADD COLUMN specs JSON NULL' });
+  if (!existing.has('tags')) missing.push({ name: 'tags', ddl: 'ALTER TABLE products ADD COLUMN tags JSON NULL' });
+  if (!existing.has('active')) missing.push({ name: 'active', ddl: 'ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1' });
+  if (!existing.has('featured')) missing.push({ name: 'featured', ddl: 'ALTER TABLE products ADD COLUMN featured TINYINT(1) NOT NULL DEFAULT 0' });
+  if (!existing.has('release')) missing.push({ name: 'release', ddl: 'ALTER TABLE products ADD COLUMN release DATE NULL' });
+  if (!existing.has('warranty')) missing.push({ name: 'warranty', ddl: 'ALTER TABLE products ADD COLUMN warranty VARCHAR(20) NULL' });
   if (!existing.has('notes')) missing.push({ name: 'notes', ddl: 'ALTER TABLE products ADD COLUMN notes TEXT NULL' });
 
   for (const col of missing) {
@@ -246,11 +259,16 @@ app.post('/api/products', async (req, res) => {
     const colors = JSON.stringify(normalizeArray(p.colors));
     const features = JSON.stringify(normalizeArray(p.features));
     const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
+    const tags = JSON.stringify(normalizeArray(p.tags));
+    const active = p.active === undefined ? 1 : (p.active ? 1 : 0);
+    const featured = p.featured ? 1 : 0;
+    const release = p.release ? String(p.release).slice(0, 10) : null;
+    const warranty = p.warranty ? String(p.warranty) : null;
     const notes = p.notes || null;
 
     await q(
-      `INSERT INTO products (id, name, brand, category, price, stock, colors, features, specs, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO products (id, name, brand, category, price, stock, colors, features, specs, tags, active, featured, release, warranty, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          name = VALUES(name),
          brand = VALUES(brand),
@@ -260,6 +278,11 @@ app.post('/api/products', async (req, res) => {
          colors = VALUES(colors),
          features = VALUES(features),
          specs = VALUES(specs),
+         tags = VALUES(tags),
+         active = VALUES(active),
+         featured = VALUES(featured),
+         release = VALUES(release),
+         warranty = VALUES(warranty),
          notes = VALUES(notes)`,
       [
         id,
@@ -271,6 +294,11 @@ app.post('/api/products', async (req, res) => {
         colors,
         features,
         specs,
+        tags,
+        active,
+        featured,
+        release,
+        warranty,
         notes
       ]
     );
@@ -293,11 +321,16 @@ app.put('/api/products/:id', async (req, res) => {
     const colors = JSON.stringify(normalizeArray(p.colors));
     const features = JSON.stringify(normalizeArray(p.features));
     const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
+    const tags = JSON.stringify(normalizeArray(p.tags));
+    const active = p.active === undefined ? 1 : (p.active ? 1 : 0);
+    const featured = p.featured ? 1 : 0;
+    const release = p.release ? String(p.release).slice(0, 10) : null;
+    const warranty = p.warranty ? String(p.warranty) : null;
     const notes = p.notes || null;
 
     const result = await q(
       `UPDATE products
-       SET name = ?, brand = ?, category = ?, price = ?, stock = ?, colors = ?, features = ?, specs = ?, notes = ?
+       SET name = ?, brand = ?, category = ?, price = ?, stock = ?, colors = ?, features = ?, specs = ?, tags = ?, active = ?, featured = ?, release = ?, warranty = ?, notes = ?
        WHERE id = ?`,
       [
         p.name || null,
@@ -308,6 +341,11 @@ app.put('/api/products/:id', async (req, res) => {
         colors,
         features,
         specs,
+        tags,
+        active,
+        featured,
+        release,
+        warranty,
         notes,
         id
       ]

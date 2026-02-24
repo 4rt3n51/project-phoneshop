@@ -265,6 +265,18 @@
       return [];
     }
 
+    function normalizeList(list){
+      if (Array.isArray(list)) return list;
+      if (typeof list === 'string'){
+        try{
+          const parsed = JSON.parse(list);
+          if (Array.isArray(parsed)) return parsed;
+        }catch(e){}
+        return list.split(',').map(v=>v.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
     // Robust service value parser: admin may save numbers or strings like "$199"
     function parseServiceValue(val){
       if (typeof val === 'number' && Number.isFinite(val)) return val;
@@ -390,7 +402,20 @@ window.openProduct = async function(id){
     modalPrice.textContent = formatPrice(p.price);
     modalMainImg.src = (p.images && p.images[0]) ? p.images[0] : 'https://via.placeholder.com/1200x800?text=No+Image';
     modalThumbs.innerHTML = (p.images||[]).map((src, i)=>`<img src="${src}" data-src="${src}" onclick="selectModalImg(this)" class="${i===0? 'active':''}" alt="${escapeHtml(p.name)} image ${i+1}"/>`).join('');
-    modalSpecTable.innerHTML = Object.entries(p.specs || {}).map(([k,v])=>`<tr><td style="width:35%;font-weight:600">${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('');
+    const colors = normalizeList(p.colors);
+    const features = normalizeList(p.features);
+    const tags = normalizeTags(p.tags);
+    const baseRows = [
+      ['Release date', p.release || '-'],
+      ['Warranty', p.warranty || '-'],
+      ['Colors', colors.length ? colors.join(', ') : '-'],
+      ['Features', features.length ? features.join(', ') : '-'],
+      ['Tags', tags.length ? tags.join(', ') : '-']
+    ];
+    const specRows = Object.entries(p.specs || {}).map(([k, v]) => [k, String(v)]);
+    modalSpecTable.innerHTML = [...baseRows, ...specRows]
+      .map(([k, v]) => `<tr><td style="width:35%;font-weight:600">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
+      .join('');
 
     // services
     serviceArea.innerHTML = '';
