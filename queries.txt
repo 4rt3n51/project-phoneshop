@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS products (
   tags JSON NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
   featured TINYINT(1) NOT NULL DEFAULT 0,
-  release DATE NULL,
+  release_date DATE NULL,
   warranty VARCHAR(20) NULL,
   notes TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -128,7 +128,7 @@ async function ensureProductsColumns() {
   if (!existing.has('tags')) missing.push({ name: 'tags', ddl: 'ALTER TABLE products ADD COLUMN tags JSON NULL' });
   if (!existing.has('active')) missing.push({ name: 'active', ddl: 'ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1' });
   if (!existing.has('featured')) missing.push({ name: 'featured', ddl: 'ALTER TABLE products ADD COLUMN featured TINYINT(1) NOT NULL DEFAULT 0' });
-  if (!existing.has('release') && !existing.has('release_date')) missing.push({ name: 'release', ddl: 'ALTER TABLE products ADD COLUMN release DATE NULL' });
+  if (!existing.has('release_date')) missing.push({ name: 'release_date', ddl: 'ALTER TABLE products ADD COLUMN release DATE NULL' });
   if (!existing.has('warranty')) missing.push({ name: 'warranty', ddl: 'ALTER TABLE products ADD COLUMN warranty VARCHAR(20) NULL' });
   if (!existing.has('notes')) missing.push({ name: 'notes', ddl: 'ALTER TABLE products ADD COLUMN notes TEXT NULL' });
 
