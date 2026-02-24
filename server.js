@@ -20,6 +20,7 @@ const pool = mysql.createPool({
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+let productsColumnSet = new Set();
 
 function parseJsonField(val, fallback = null) {
   if (val === null || val === undefined) return fallback;
@@ -91,6 +92,18 @@ async function q(sql, params = []) {
   return rows;
 }
 
+function setProductColumns(rows) {
+  productsColumnSet = new Set(rows.map((r) => r.COLUMN_NAME));
+}
+
+function hasProductColumn(columnName) {
+  return productsColumnSet.has(columnName);
+}
+
+function quoteColumn(columnName) {
+  return `\`${columnName}\``;
+}
+
 function isDuplicateColumnError(error) {
   return error && error.code === 'ER_DUP_FIELDNAME';
 }
@@ -101,8 +114,8 @@ async function ensureProductsColumns() {
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'`
   );
-
-  const existing = new Set(columns.map((c) => c.COLUMN_NAME));
+  setProductColumns(columns);
+  const existing = new Set(productsColumnSet);
   const missing = [];
 
   if (!existing.has('specs')) missing.push({ name: 'specs', ddl: 'ALTER TABLE products ADD COLUMN specs JSON NULL' });
@@ -118,8 +131,22 @@ async function ensureProductsColumns() {
       await q(col.ddl);
       console.log(`Added missing products.${col.name} column`);
     } catch (error) {
-      if (!isDuplicateColumnError(error)) throw error;
+      if (!isDuplicateColumnError(error)) {
+        // If the DB user cannot ALTER TABLE, continue with existing columns.
+        console.warn(`Could not add products.${col.name} column`, error.code || error.message);
+      }
     }
+  }
+
+  try {
+    const refreshed = await q(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'`
+    );
+    setProductColumns(refreshed);
+  } catch (error) {
+    console.warn('Could not refresh products columns list', error.code || error.message);
   }
 }
 
@@ -256,52 +283,41 @@ app.post('/api/products', async (req, res) => {
   if (!id || !name) return res.status(400).json({ error: 'id and name are required' });
 
   try {
-    const colors = JSON.stringify(normalizeArray(p.colors));
-    const features = JSON.stringify(normalizeArray(p.features));
-    const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
-    const tags = JSON.stringify(normalizeArray(p.tags));
-    const active = p.active === undefined ? 1 : (p.active ? 1 : 0);
-    const featured = p.featured ? 1 : 0;
-    const release = p.release ? String(p.release).slice(0, 10) : null;
-    const warranty = p.warranty ? String(p.warranty) : null;
-    const notes = p.notes || null;
+    const payload = {
+      name,
+      brand: p.brand || null,
+      category: p.category || null,
+      price: toNumber(p.price, 0),
+      stock: toNumber(p.stock, 0),
+      colors: JSON.stringify(normalizeArray(p.colors)),
+      features: JSON.stringify(normalizeArray(p.features)),
+      specs: JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {}),
+      tags: JSON.stringify(normalizeArray(p.tags)),
+      active: p.active === undefined ? 1 : (p.active ? 1 : 0),
+      featured: p.featured ? 1 : 0,
+      release: p.release ? String(p.release).slice(0, 10) : null,
+      warranty: p.warranty ? String(p.warranty) : null,
+      notes: p.notes || null
+    };
 
-    await q(
-      `INSERT INTO products (id, name, brand, category, price, stock, colors, features, specs, tags, active, featured, release, warranty, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         name = VALUES(name),
-         brand = VALUES(brand),
-         category = VALUES(category),
-         price = VALUES(price),
-         stock = VALUES(stock),
-         colors = VALUES(colors),
-         features = VALUES(features),
-         specs = VALUES(specs),
-         tags = VALUES(tags),
-         active = VALUES(active),
-         featured = VALUES(featured),
-         release = VALUES(release),
-         warranty = VALUES(warranty),
-         notes = VALUES(notes)`,
-      [
-        id,
-        name,
-        p.brand || null,
-        p.category || null,
-        toNumber(p.price, 0),
-        toNumber(p.stock, 0),
-        colors,
-        features,
-        specs,
-        tags,
-        active,
-        featured,
-        release,
-        warranty,
-        notes
-      ]
-    );
+    const columns = ['id', 'name', 'brand', 'category', 'price', 'stock', 'colors', 'features'];
+    const values = [id, payload.name, payload.brand, payload.category, payload.price, payload.stock, payload.colors, payload.features];
+    const updateColumns = ['name', 'brand', 'category', 'price', 'stock', 'colors', 'features'];
+    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'release', 'warranty', 'notes'];
+
+    for (const col of optionalColumns) {
+      if (hasProductColumn(col)) {
+        columns.push(col);
+        values.push(payload[col]);
+        updateColumns.push(col);
+      }
+    }
+
+    const sql = `INSERT INTO products (${columns.map(quoteColumn).join(', ')})
+                 VALUES (${columns.map(() => '?').join(', ')})
+                 ON DUPLICATE KEY UPDATE ${updateColumns.map((c) => `${quoteColumn(c)} = VALUES(${quoteColumn(c)})`).join(', ')}`;
+
+    await q(sql, values);
 
     await replaceProductImages(id, p.images);
     await replaceProductServices(id, p.services);
@@ -318,38 +334,47 @@ app.put('/api/products/:id', async (req, res) => {
   const p = req.body || {};
 
   try {
-    const colors = JSON.stringify(normalizeArray(p.colors));
-    const features = JSON.stringify(normalizeArray(p.features));
-    const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
-    const tags = JSON.stringify(normalizeArray(p.tags));
-    const active = p.active === undefined ? 1 : (p.active ? 1 : 0);
-    const featured = p.featured ? 1 : 0;
-    const release = p.release ? String(p.release).slice(0, 10) : null;
-    const warranty = p.warranty ? String(p.warranty) : null;
-    const notes = p.notes || null;
+    const payload = {
+      name: p.name || null,
+      brand: p.brand || null,
+      category: p.category || null,
+      price: toNumber(p.price, 0),
+      stock: toNumber(p.stock, 0),
+      colors: JSON.stringify(normalizeArray(p.colors)),
+      features: JSON.stringify(normalizeArray(p.features)),
+      specs: JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {}),
+      tags: JSON.stringify(normalizeArray(p.tags)),
+      active: p.active === undefined ? 1 : (p.active ? 1 : 0),
+      featured: p.featured ? 1 : 0,
+      release: p.release ? String(p.release).slice(0, 10) : null,
+      warranty: p.warranty ? String(p.warranty) : null,
+      notes: p.notes || null
+    };
 
-    const result = await q(
-      `UPDATE products
-       SET name = ?, brand = ?, category = ?, price = ?, stock = ?, colors = ?, features = ?, specs = ?, tags = ?, active = ?, featured = ?, release = ?, warranty = ?, notes = ?
-       WHERE id = ?`,
-      [
-        p.name || null,
-        p.brand || null,
-        p.category || null,
-        toNumber(p.price, 0),
-        toNumber(p.stock, 0),
-        colors,
-        features,
-        specs,
-        tags,
-        active,
-        featured,
-        release,
-        warranty,
-        notes,
-        id
-      ]
-    );
+    const setColumns = ['name', 'brand', 'category', 'price', 'stock', 'colors', 'features'];
+    const setValues = [
+      payload.name,
+      payload.brand,
+      payload.category,
+      payload.price,
+      payload.stock,
+      payload.colors,
+      payload.features
+    ];
+    const optionalColumns = ['specs', 'tags', 'active', 'featured', 'release', 'warranty', 'notes'];
+
+    for (const col of optionalColumns) {
+      if (hasProductColumn(col)) {
+        setColumns.push(col);
+        setValues.push(payload[col]);
+      }
+    }
+
+    const sql = `UPDATE products
+                 SET ${setColumns.map((c) => `${quoteColumn(c)} = ?`).join(', ')}
+                 WHERE id = ?`;
+
+    const result = await q(sql, [...setValues, id]);
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'not found' });
 
@@ -482,7 +507,7 @@ async function start() {
   try {
     await ensureProductsColumns();
   } catch (error) {
-    console.error('Failed to ensure products schema for specs/notes', error);
+    console.error('Failed to ensure products schema columns', error);
   }
 
   app.listen(PORT, HOST, () => {
