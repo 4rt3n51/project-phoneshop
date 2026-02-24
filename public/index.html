@@ -253,6 +253,18 @@
     function truncate(s,len=90){ return s && s.length>len ? s.slice(0,len-1)+'…' : s || ''; }
     function escapeHtml(s){ if(s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+    function normalizeTags(tags){
+      if (Array.isArray(tags)) return tags;
+      if (typeof tags === 'string'){
+        try{
+          const parsed = JSON.parse(tags);
+          if (Array.isArray(parsed)) return parsed;
+        }catch(e){}
+        return tags.split(',').map(t=>t.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
     // Robust service value parser: admin may save numbers or strings like "$199"
     function parseServiceValue(val){
       if (typeof val === 'number' && Number.isFinite(val)) return val;
@@ -317,6 +329,8 @@
         const rating = avgRating(p.reviews).toFixed(1);
         const revCount = (p.reviews||[]).length;
         const specPreview = Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>`${k}: ${v}`).join(' • ');
+        const tagChips = normalizeTags(p.tags).slice(0,3).map(tag=>`<span title="Tag">${escapeHtml(String(tag))}</span>`).join('');
+        const specsHtml = tagChips || Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>`<span title="${escapeHtml(k)}">${escapeHtml(k)}: ${escapeHtml(String(v))}</span>`).join('');
         if(compactView){
           return `
             <div class="card" style="display:flex;gap:12px;align-items:center;">
@@ -343,7 +357,7 @@
           </div>
           <div id="card-${p.id}" class="name">${escapeHtml(p.name)}</div>
           <div class="desc" title="${escapeHtml(specPreview)}">${escapeHtml(truncate(specPreview,120))}</div>
-          <div class="specs">${Object.entries(p.specs||{}).slice(0,3).map(([k,v])=>`<span title="${escapeHtml(k)}">${escapeHtml(k)}: ${escapeHtml(String(v))}</span>`).join('')}</div>
+          <div class="specs">${specsHtml}</div>
           <div class="meta">
             <div class="price">${formatPrice(p.price)}</div>
             <div style="display:flex;gap:10px;align-items:center">
