@@ -218,10 +218,12 @@ app.post('/api/products', async (req, res) => {
   try {
     const colors = JSON.stringify(normalizeArray(p.colors));
     const features = JSON.stringify(normalizeArray(p.features));
+    const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
+    const notes = p.notes || null;
 
     await q(
-      `INSERT INTO products (id, name, brand, category, price, stock, colors, features)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO products (id, name, brand, category, price, stock, colors, features, specs, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          name = VALUES(name),
          brand = VALUES(brand),
@@ -229,8 +231,21 @@ app.post('/api/products', async (req, res) => {
          price = VALUES(price),
          stock = VALUES(stock),
          colors = VALUES(colors),
-         features = VALUES(features)`,
-      [id, name, p.brand || null, p.category || null, toNumber(p.price, 0), toNumber(p.stock, 0), colors, features]
+         features = VALUES(features),
+         specs = VALUES(specs),
+         notes = VALUES(notes)`,
+      [
+        id,
+        name,
+        p.brand || null,
+        p.category || null,
+        toNumber(p.price, 0),
+        toNumber(p.stock, 0),
+        colors,
+        features,
+        specs,
+        notes
+      ]
     );
 
     await replaceProductImages(id, p.images);
@@ -250,12 +265,25 @@ app.put('/api/products/:id', async (req, res) => {
   try {
     const colors = JSON.stringify(normalizeArray(p.colors));
     const features = JSON.stringify(normalizeArray(p.features));
+    const specs = JSON.stringify(p.specs && typeof p.specs === 'object' ? p.specs : {});
+    const notes = p.notes || null;
 
     const result = await q(
       `UPDATE products
-       SET name = ?, brand = ?, category = ?, price = ?, stock = ?, colors = ?, features = ?
+       SET name = ?, brand = ?, category = ?, price = ?, stock = ?, colors = ?, features = ?, specs = ?, notes = ?
        WHERE id = ?`,
-      [p.name || null, p.brand || null, p.category || null, toNumber(p.price, 0), toNumber(p.stock, 0), colors, features, id]
+      [
+        p.name || null,
+        p.brand || null,
+        p.category || null,
+        toNumber(p.price, 0),
+        toNumber(p.stock, 0),
+        colors,
+        features,
+        specs,
+        notes,
+        id
+      ]
     );
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'not found' });
