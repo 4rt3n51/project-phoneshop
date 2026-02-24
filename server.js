@@ -1,18 +1,20 @@
 const path = require('path');
 const express = require('express');
-const mariadb = require('mariadb');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 
-const pool = mariadb.createPool({
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD || process.env.DB_PASS,
   database: process.env.DB_NAME || 'PhoneShop',
   port: Number(process.env.DB_PORT || 3306),
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10)
+  waitForConnections: true,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+  queueLimit: 0
 });
 
 const app = express();
@@ -77,7 +79,8 @@ function normalizeProduct(row) {
 }
 
 async function q(sql, params = []) {
-  return pool.query(sql, params);
+  const [rows] = await pool.query(sql, params);
+  return rows;
 }
 
 function normalizeImageUrls(images) {
