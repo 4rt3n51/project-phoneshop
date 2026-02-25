@@ -1,0 +1,47 @@
+name: Deploy to Private EC2 Instances via Bastion
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.BASTION_HOST }} >> ~/.ssh/known_hosts
+
+    # Upload project to Bastion host
+    - name: Upload to Bastion (rsync)
+      run: |
+        rsync -az --delete \
+          -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+          --exclude ".git" \
+          --exclude ".github" \
+          ./ \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/deploy/
+
+    # Deploy to EC2 #1
+    - name: Deploy to EC2 Node 1
+      run: |
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+          "rsync -az --delete -e 'ssh -o StrictHostKeyChecking=no' /home/${{ secrets.BASTION_USER }}/deploy/ ec2-user@${{ secrets.EC2_NODE_1 }}:/var/www/html && \
+           ssh ec2-user@${{ secrets.EC2_NODE_1 }} 'sudo systemctl restart nginx || sudo systemctl restart httpd'"
+
+    # Deploy to EC2 #2
+    - name: Deploy to EC2 Node 2
+      run: |
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+          "rsync -az --delete -e 'ssh -o StrictHostKeyChecking=no' /home/${{ secrets.BASTION_USER }}/deploy/ ec2-user@${{ secrets.EC2_NODE_2 }}:/var/www/html && \
+           ssh ec2-user@${{ secrets.EC2_NODE_2 }} 'sudo systemctl restart nginx || sudo systemctl restart httpd'"
