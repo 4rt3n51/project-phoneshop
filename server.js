@@ -1,7 +1,7 @@
 const path = require('path');
 const express = require('express');
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+require('dotenv').config({ path: '/home/ubuntu/.env' });
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
