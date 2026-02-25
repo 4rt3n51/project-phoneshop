@@ -7,21 +7,27 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # ---------------------------------------------------
+    # 1) Configure SSH on GitHub runner
+    # ---------------------------------------------------
     - name: Configure SSH
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.BASTION_HOST }} >> ~/.ssh/known_hosts
+        ssh-keyscan -H ${{ secrets.BASTION_HOST }} >> ~/.ssh/known_hosts || true
 
-    # Upload project to Bastion host
-    - name: Upload to Bastion (rsync)
+    # ---------------------------------------------------
+    # 2) Upload source code to Bastion
+    # ---------------------------------------------------
+    - name: Upload project to Bastion
       run: |
         rsync -az --delete \
           -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
@@ -30,18 +36,55 @@ jobs:
           ./ \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/deploy/
 
-    # Deploy to EC2 #1
+    # ---------------------------------------------------
+    # 3) Copy SSH private key to Bastion (Option A)
+    # ---------------------------------------------------
+    - name: Copy deploy key to Bastion
+      run: |
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          ~/.ssh/id_rsa \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:~/.ssh/deploy_key
+
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+          "chmod 600 ~/.ssh/deploy_key"
+
+    # ---------------------------------------------------
+    # 4) Deploy to PRIVATE EC2 #1 (Ubuntu)
+    # ---------------------------------------------------
     - name: Deploy to EC2 Node 1
       run: |
         ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
-          "rsync -az --delete -e 'ssh -o StrictHostKeyChecking=no' /home/${{ secrets.BASTION_USER }}/deploy/ ec2-user@${{ secrets.EC2_NODE_1 }}:/var/www/html && \
-           ssh ec2-user@${{ secrets.EC2_NODE_1 }} 'sudo systemctl restart nginx || sudo systemctl restart httpd'"
+          "
+            rsync -az --delete \
+              -e 'ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no' \
+              /home/${{ secrets.BASTION_USER }}/deploy/ \
+              ubuntu@${{ secrets.EC2_NODE_1 }}:/home/ubuntu/app/
 
-    # Deploy to EC2 #2
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+              ubuntu@${{ secrets.EC2_NODE_1 }} \
+              'sudo mkdir -p /var/www/html &&
+               sudo rsync -az --delete /home/ubuntu/app/ /var/www/html/ &&
+               (sudo systemctl restart nginx || sudo systemctl restart apache2)'
+          "
+
+    # ---------------------------------------------------
+    # 5) Deploy to PRIVATE EC2 #2 (Ubuntu)
+    # ---------------------------------------------------
     - name: Deploy to EC2 Node 2
       run: |
         ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
-          "rsync -az --delete -e 'ssh -o StrictHostKeyChecking=no' /home/${{ secrets.BASTION_USER }}/deploy/ ec2-user@${{ secrets.EC2_NODE_2 }}:/var/www/html && \
-           ssh ec2-user@${{ secrets.EC2_NODE_2 }} 'sudo systemctl restart nginx || sudo systemctl restart httpd'"
+          "
+            rsync -az --delete \
+              -e 'ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no' \
+              /home/${{ secrets.BASTION_USER }}/deploy/ \
+              ubuntu@${{ secrets.EC2_NODE_2 }}:/home/ubuntu/app/
+
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+              ubuntu@${{ secrets.EC2_NODE_2 }} \
+              'sudo mkdir -p /var/www/html &&
+               sudo rsync -az --delete /home/ubuntu/app/ /var/www/html/ &&
+               (sudo systemctl restart nginx || sudo systemctl restart apache2)'
+          "
