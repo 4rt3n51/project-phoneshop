@@ -42,4 +42,4 @@ jobs:
               (sudo systemctl restart nginx || sudo systemctl restart httpd)
             "
           done
-EOF
+          EOF
