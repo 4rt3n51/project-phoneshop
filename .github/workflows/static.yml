@@ -28,7 +28,7 @@ jobs:
     # ------------------------------
     - name: Upload project to Bastion
       run: |
-        rsync -az --delete \
+        rsync -az --delete --exclude ".env" \
         -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
         --exclude ".git" \
         --exclude ".github" \
