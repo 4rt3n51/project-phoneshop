@@ -1,0 +1,44 @@
+name: Deploy to Both Private EC2 Instances
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan ${{ secrets.BASTION_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Upload code bundle to Bastion
+      run: |
+        tar czf app.tar.gz .
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          app.tar.gz \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:~/app.tar.gz
+
+    - name: Deploy to Private EC2 Instances
+      run: |
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} << 'EOF'
+
+          for node in ${{ secrets.EC2_NODE_1 }} ${{ secrets.EC2_NODE_2 }}; do
+            scp -o StrictHostKeyChecking=no app.tar.gz ec2-user@"$node":/home/ec2-user/
+
+            ssh -o StrictHostKeyChecking=no ec2-user@"$node" "
+              sudo mkdir -p /var/www/html &&
+              sudo tar xzf /home/ec2-user/app.tar.gz -C /var/www/html &&
+              sudo systemctl restart nginx || sudo systemctl restart httpd
+            "
+          done
+
+        EOF
