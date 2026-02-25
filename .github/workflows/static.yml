@@ -1,4 +1,4 @@
-name: Deploy to Private EC2 Instances via Bastion
+name: Deploy Node App to Private EC2 via Bastion
 
 on:
   push:
@@ -14,9 +14,9 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # ---------------------------------------------------
-    # 1) Configure SSH on GitHub runner
-    # ---------------------------------------------------
+    # ----------------------------------------------
+    # 1. Setup SSH on GitHub runner
+    # ----------------------------------------------
     - name: Configure SSH
       run: |
         mkdir -p ~/.ssh
@@ -24,9 +24,9 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.BASTION_HOST }} >> ~/.ssh/known_hosts || true
 
-    # ---------------------------------------------------
-    # 2) Upload source code to Bastion
-    # ---------------------------------------------------
+    # ----------------------------------------------
+    # 2. Upload code to Bastion via rsync
+    # ----------------------------------------------
     - name: Upload project to Bastion
       run: |
         rsync -az --delete \
@@ -36,55 +36,55 @@ jobs:
           ./ \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:/home/${{ secrets.BASTION_USER }}/deploy/
 
-    # ---------------------------------------------------
-    # 3) Copy SSH private key to Bastion (Option A)
-    # ---------------------------------------------------
+    # ----------------------------------------------
+    # 3. Copy deploy key to Bastion (for second hop)
+    # ----------------------------------------------
     - name: Copy deploy key to Bastion
       run: |
         scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
           ~/.ssh/id_rsa \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }}:~/.ssh/deploy_key
-
+          
         ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
           ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
           "chmod 600 ~/.ssh/deploy_key"
 
-    # ---------------------------------------------------
-    # 4) Deploy to PRIVATE EC2 #1 (Ubuntu)
-    # ---------------------------------------------------
+    # ----------------------------------------------
+    # 4. Deploy to private EC2 Node 1 (Ubuntu + PM2)
+    # ----------------------------------------------
     - name: Deploy to EC2 Node 1
       run: |
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.BASTION_HOST }}@${{ secrets.BASTION_HOST }} \
           "
             rsync -az --delete \
               -e 'ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no' \
               /home/${{ secrets.BASTION_USER }}/deploy/ \
-              ubuntu@${{ secrets.EC2_NODE_1 }}:/home/ubuntu/app/
+              ubuntu@${{ secrets.EC2_NODE_1 }}:/home/ubuntu/project-phoneshop/
 
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               ubuntu@${{ secrets.EC2_NODE_1 }} \
-              'sudo mkdir -p /var/www/html &&
-               sudo rsync -az --delete /home/ubuntu/app/ /var/www/html/ &&
-               (sudo systemctl restart nginx || sudo systemctl restart apache2)'
+              'cd /home/ubuntu/project-phoneshop &&
+               npm install --production &&
+               pm2 restart phoneshop &&
+               sudo systemctl restart nginx'
           "
 
-    # ---------------------------------------------------
-    # 5) Deploy to PRIVATE EC2 #2 (Ubuntu)
-    # ---------------------------------------------------
+    # ----------------------------------------------
+    # 5. Deploy to private EC2 Node 2
+    # ----------------------------------------------
     - name: Deploy to EC2 Node 2
       run: |
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-          ${{ secrets.BASTION_USER }}@${{ secrets.BASTION_HOST }} \
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.BASTION_HOST }}@${{ secrets.BASTION_HOST }} \
           "
             rsync -az --delete \
               -e 'ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no' \
               /home/${{ secrets.BASTION_USER }}/deploy/ \
-              ubuntu@${{ secrets.EC2_NODE_2 }}:/home/ubuntu/app/
+              ubuntu@${{ secrets.EC2_NODE_2 }}:/home/ubuntu/project-phoneshop/
 
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
               ubuntu@${{ secrets.EC2_NODE_2 }} \
-              'sudo mkdir -p /var/www/html &&
-               sudo rsync -az --delete /home/ubuntu/app/ /var/www/html/ &&
-               (sudo systemctl restart nginx || sudo systemctl restart apache2)'
+              'cd /home/ubuntu/project-phoneshop &&
+               npm install --production &&
+               pm2 restart phoneshop &&
+               sudo systemctl restart nginx'
           "
