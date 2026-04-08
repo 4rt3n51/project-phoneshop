@@ -28,10 +28,21 @@ Deploy on EC2 (summary)
 - Ensure RDS MySQL security group allows inbound 3306 from web instances' security group
 - Use PM2 `pm2 save` + `pm2 startup` so processes auto-resurrect on reboot
 
+Deploy on EKS (summary)
+- Build the container image with the included `Dockerfile`
+- Push the image to Amazon ECR
+- Apply `k8s/namespace.yaml`
+- Create a Kubernetes secret from `k8s/secret.example.yaml` or from a local `.env` file
+- Apply `k8s/deployment.yaml` and `k8s/service.yaml`
+- Ensure the RDS security group allows inbound 3306 from the EKS worker node security group
+
 Repository layout (selected)
 - package.json, package-lock.json
 - server.js, db.js, routes/...
 - ecosystem.config.js
+- Dockerfile, .dockerignore
+- k8s/namespace.yaml
+- k8s/deployment.yaml, k8s/service.yaml, k8s/secret.example.yaml
 - .env.example
 - scripts/bootstrap.sh
 - nginx/phoneshop.conf.template
