@@ -17,6 +17,9 @@ spec:
         - name: phoneshop
           image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/phoneshop:latest
           imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: phoneshop-env
           ports:
             - containerPort: 3000
           readinessProbe:
@@ -31,11 +34,6 @@ spec:
               port: 3000
             initialDelaySeconds: 20
             periodSeconds: 20
-          volumeMounts:
-            - name: env-file
-              mountPath: /home/ubuntu/.env
-              subPath: .env
-              readOnly: true
           resources:
             requests:
               cpu: 100m
@@ -43,7 +41,3 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-      volumes:
-        - name: env-file
-          secret:
-            secretName: phoneshop-env

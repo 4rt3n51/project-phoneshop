@@ -32,7 +32,7 @@ Deploy on EKS (summary)
 - Build the container image with the included `Dockerfile`
 - Push the image to Amazon ECR
 - Apply `k8s/namespace.yaml`
-- Create a Kubernetes secret from `k8s/secret.example.yaml` or from a local `.env` file
+- Create a Kubernetes secret from `k8s/secret.example.yaml`
 - Apply `k8s/deployment.yaml` and `k8s/service.yaml`
 - Ensure the RDS security group allows inbound 3306 from the EKS worker node security group
 
